@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by
+Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+    name="slip">
+    <link
+        name="base_link">
+        <inertial>
+            <origin
+                xyz="-9.3513E-18 2.137E-17 0"
+                rpy="0 0 0" />
+            <!-- <mass
+                value="23.6" /> -->
+            <mass value="12.761" />
+            <inertia
+                ixx="0.43532"
+                ixy="3.881E-17"
+                ixz="-9.2802E-18"
+                iyy="0.089532"
+                iyz="-2.1286E-18"
+                izz="0.43953" />
+        </inertial>
+        <visual>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/base_link.STL" />
+            </geometry>
+            <material
+                name="">
+                <color
+                    rgba="0.79216 0.81961 0.93333 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/base_link.STL" />
+            </geometry>
+        </collision>
+    </link>
+    <link
+        name="link1">
+        <inertial>
+            <origin
+                xyz="7.2774E-16 3.7304E-17 2.7756E-17"
+                rpy="0 0 0" />
+            <mass
+                value="0.002" />
+            <inertia
+                ixx="0.001133"
+                ixy="8.7857E-19"
+                ixz="-4.1776E-18"
+                iyy="0.0025494"
+                iyz="-4.4149E-20"
+                izz="0.0032044" />
+        </inertial>
+        <visual>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/link1.STL" />
+            </geometry>
+            <material
+                name="">
+                <color
+                    rgba="0.79216 0.81961 0.93333 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/link1.STL" />
+            </geometry>
+        </collision>
+    </link>
+    <joint
+        name="joint1"
+        type="revolute">
+        <origin
+            xyz="0 0 0"
+            rpy="0 0 0" />
+        <parent
+            link="base_link" />
+        <child
+            link="link1" />
+        <axis
+            xyz="-1 0 0" />
+        <limit
+            lower="-3.14"
+            upper="3.14"
+            effort="10000"
+            velocity="5" />
+    </joint>
+    <link
+        name="link2">
+        <inertial>
+            <origin
+                xyz="-1.3375E-08 -2.518E-08 -0.063872"
+                rpy="0 0 0" />
+            <!-- <mass
+                value="0.005" /> -->
+            <mass value="1.7676" />
+            <inertia
+                ixx="0.01034"
+                ixy="-2.2581E-09"
+                ixz="-2.4133E-10"
+                iyy="0.010119"
+                iyz="3.1353E-09"
+                izz="0.0027532" />
+        </inertial>
+        <visual>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/link2.STL" />
+            </geometry>
+            <material
+                name="">
+                <color
+                    rgba="0.79216 0.81961 0.93333 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/link2.STL" />
+            </geometry>
+        </collision>
+    </link>
+    <joint
+        name="joint2"
+        type="revolute">
+        <origin
+            xyz="0 0 0"
+            rpy="0 0 0" />
+        <parent
+            link="link1" />
+        <child
+            link="link2" />
+        <axis
+            xyz="0 -1 0" />
+        <limit
+            lower="-3.14"
+            upper="3.14"
+            effort="10000"
+            velocity="5" />
+    </joint>
+    <link
+        name="toe">
+        <inertial>
+            <origin
+                xyz="1.052E-16 -5.0005E-17 -0.0038948"
+                rpy="0 0 0" />
+            <!-- <mass
+                value="0.003" /> -->
+            <mass value="0.51686" />
+            <inertia
+                ixx="0.00050871"
+                ixy="-6.5858E-22"
+                ixz="1.115E-20"
+                iyy="0.00050871"
+                iyz="3.4755E-20"
+                izz="0.00052218" />
+        </inertial>
+        <visual>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/toe.STL" />
+            </geometry>
+            <material
+                name="">
+                <color
+                    rgba="0.79216 0.81961 0.93333 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin
+                xyz="0 0 0"
+                rpy="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="package://slip/meshes/toe.STL" />
+            </geometry>
+        </collision>
+    </link>
+    <joint
+        name="joint3"
+        type="prismatic">
+        <origin
+            xyz="0 0 -0.7"
+            rpy="0 0 0" />
+        <parent
+            link="link2" />
+        <child
+            link="toe" />
+        <axis
+            xyz="0 0 1" />
+        <limit
+            lower="-0.1"
+            upper="0.5"
+            effort="3000.0"
+            velocity="10" />
+        <dynamics
+            damping="10" />
+    </joint>
+</robot>

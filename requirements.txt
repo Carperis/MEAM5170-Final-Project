@@ -1,3 +1,2 @@
 numpy
-drake
-meshcat
+pybullet

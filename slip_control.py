@@ -5,30 +5,30 @@ import pybullet_data as pd
 
 def contact():
     tip_z_position = p.getLinkState(hopperID, tipLinkIndex)[0][2]
-    if tip_z_position < (0.01 + 0.002):
+    if tip_z_position < (0.1 + 0.0002):
         return True
     else:
         return False
 
 def getVelocity():
-    base_vel = np.array(p.getBaseVelocity(hopperID)[0])
-    link2_vel = np.array(p.getLinkState(hopperID, 0, 1)[6]) # 0 is the link index of the base, 1 is the link index of the tip
-    hopper_vel = (base_vel + link2_vel) / 2
+    hopper_vel = np.array(p.getBaseVelocity(hopperID)[0])
     return hopper_vel
 
 def getTargetLegDisplacement():
     vel = getVelocity()[0:2]
     vel_error = vel - targetVelocity
-    vel_gain = 0.027
+    vel_gain = 0.027 # this value is determined by trial and error
     neutral_point = (vel * stance_duration) / 2.0
-    disp = neutral_point + vel_gain * vel_error
-    disp = np.append(disp, -np.sqrt(getLegLength()**2 - disp[0]**2 - disp[1]**2))
+    x_y_disp = neutral_point + vel_gain * vel_error
+    z_disp = -np.sqrt(getLegLength() ** 2 - x_y_disp[0] ** 2 - x_y_disp[1] ** 2)
+    disp = np.append(x_y_disp, z_disp) # disp contains the x, y, z displacement of the tip of the leg in the base frame
     if np.isnan(disp[2]):
         print('legs too short')
     return disp
 
 def getLegLength():
-    return 0.15 - p.getJointState(hopperID, pneumatic_joint_index)[0]
+    # 0.15 is the rest length of the pneumatic joint
+    return 0.5 - p.getJointState(hopperID, pneumatic_joint_index)[0]
 
 def transform_H_to_B(vec):
     HB_matrix_row_form = p.getMatrixFromQuaternion(p.getBasePositionAndOrientation(hopperID)[1])
@@ -42,17 +42,17 @@ def transform_H_to_B(vec):
     return BH_matrix * vec
 
 # -----------Start Setup---------------
-k_flight = 1200
-k_stance = 2700
+k_flight = 6000
+k_stance = 6000 * 2.25
 state = 0
 legForce = 0
-tipLinkIndex = 6
+tipLinkIndex = 2
 
-outer_hip_joint_index = 2
-inner_hip_joint_index = 5
-pneumatic_joint_index = 6
+outer_hip_joint_index = 0
+inner_hip_joint_index = 1
+pneumatic_joint_index = 2
 
-hip_joint_kp = 10
+hip_joint_kp = 1
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -60,17 +60,28 @@ p.setAdditionalSearchPath(pd.getDataPath())
 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
 planeID = p.loadURDF("plane.urdf")
-p.changeDynamics(planeID, -1, lateralFriction=60)
+p.changeDynamics(planeID, -1, lateralFriction=60) # frction coefficient is set to 60 (unitless)
 # p.resetDebugVisualizerCamera(cameraDistance=1.62, cameraYaw=47.6, cameraPitch=-30.8,
 #                              cameraTargetPosition=[0.43, 1.49, -0.25])
 
-hopperID = p.loadURDF("hopper.urdf", [0, 0, 0.2], [0.00, 0.001, 0, 1])
-p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.VELOCITY_CONTROL, force=0) # set the initial force to 0, if not, the hopper will jump up at the beginning
+hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+# hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.VELOCITY_CONTROL, force=0) # set the pneumatic joint to be in position control mode
 p.setGravity(0, 0, -9.81)
+
+num_joint = p.getNumJoints(hopperID)
+for i in range(num_joint):
+    print(p.getJointInfo(hopperID, i))
+
 curtime = 0
 dt = 1. / 240.
 
 # while 1:
+#     position = p.getJointState(hopperID, pneumatic_joint_index)[0]
+#     legForce = -(k_flight) * position
+#     p.setJointMotorControl2(
+#         hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce
+#     )
 #     print(p.getJointState(hopperID, pneumatic_joint_index))
 #     time.sleep(dt)
 #     p.stepSimulation()
@@ -79,13 +90,9 @@ prev_orientation = np.array([0, 0, 0])
 count = 0
 
 stance_made = False
-stance_duration = 0.17 * 2
+stance_duration = 0.17 # this value is determined by trial and error
 
 targetVelocity = np.array([0.3, 0.3])
-
-num_joint = p.getNumJoints(hopperID)
-for i in range(num_joint):
-    print(p.getJointInfo(hopperID, i))
 
 while 1:
     keys = p.getKeyboardEvents()
@@ -108,7 +115,7 @@ while 1:
 
     count = count + 1
     curtime = curtime + dt
-    position = p.getJointState(hopperID, pneumatic_joint_index)[0]
+    position = p.getJointState(hopperID, pneumatic_joint_index)[0] # get the position on axis z of the pneumatic joint
 
     if contact():
         state = 0
@@ -137,7 +144,7 @@ while 1:
             stance_made = True
             stance_duration = 0
         stance_duration = stance_duration + dt
-        base_orientation = p.getLinkState(hopperID, 1)[1]
+        base_orientation = p.getLinkState(hopperID, 0)[1]
         base_orientation_euler = np.array(p.getEulerFromQuaternion(base_orientation))
         orientation_change = base_orientation_euler - prev_orientation
         orientation_velocity = orientation_change / dt
@@ -148,13 +155,13 @@ while 1:
         p.setJointMotorControl2(hopperID, inner_hip_joint_index, p.VELOCITY_CONTROL,
                                 targetVelocity=inner_hip_joint_target_vel)
         prev_orientation = base_orientation_euler
-        legForce = (-(k_stance) * position) - 20
+        legForce = (-(k_stance) * position) - 500
 
-    # print(position, legForce)
     p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce)
 
+    # print(position, legForce)
     if count % 100 == 0:
-        print(f"velocity: {getVelocity()}, displacement: {getTargetLegDisplacement()}")
+        print(getVelocity(), getTargetLegDisplacement())
 
     p.stepSimulation()
     time.sleep(dt)
