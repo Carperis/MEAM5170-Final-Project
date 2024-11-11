@@ -60,7 +60,7 @@ outer_hip_joint_index = 0
 inner_hip_joint_index = 1
 pneumatic_joint_index = 2
 
-hip_joint_kp = 1
+hip_joint_kp = 10
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -72,8 +72,8 @@ p.changeDynamics(planeID, -1, lateralFriction=60) # frction coefficient is set t
 # p.resetDebugVisualizerCamera(cameraDistance=1.62, cameraYaw=47.6, cameraPitch=-30.8,
 #                              cameraTargetPosition=[0.43, 1.49, -0.25])
 
-# hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
-hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+# hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
 p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.VELOCITY_CONTROL, force=0) # set the pneumatic joint to be in position control mode
 p.setGravity(0, 0, -9.81)
 
@@ -118,7 +118,7 @@ def getSystemEnergy() -> float:
     return kinetic_energy + potential_energy + spring_potential_energy
 
 original_energy = getSystemEnergy()
-original_energy *= 1.5
+original_energy *= 1.3
 previous_energy_loss = None
 
 start_time = time.perf_counter()
@@ -132,19 +132,18 @@ while 1:
     # External force in 4 directions when shift + arrow key is pressed
 
     if p.B3G_SHIFT in keys and keys[p.B3G_SHIFT] & p.KEY_IS_DOWN:
-        print("Shift key is pressed")
-        force_magnitude = 5
+        force_magnitude = 10
         if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
-            p.applyExternalForce(hopperID, 0, [0, force_magnitude, 0], [0, 0, 0], p.WORLD_FRAME)
+            p.applyExternalForce(hopperID, 0, [0, force_magnitude, 0], [0, 0, 0], p.LINK_FRAME)
             key_pressed = True
         if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
-            p.applyExternalForce(hopperID, 0, [0, -force_magnitude, 0], [0, 0, 0], p.WORLD_FRAME)
+            p.applyExternalForce(hopperID, 0, [0, -force_magnitude, 0], [0, 0, 0], p.LINK_FRAME)
             key_pressed = True
         if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
-            p.applyExternalForce(hopperID, 0, [-force_magnitude, 0, 0], [0, 0, 0], p.WORLD_FRAME)
+            p.applyExternalForce(hopperID, 0, [-force_magnitude, 0, 0], [0, 0, 0], p.LINK_FRAME)
             key_pressed = True
         if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
-            p.applyExternalForce(hopperID, 0, [force_magnitude, 0, 0], [0, 0, 0], p.WORLD_FRAME)
+            p.applyExternalForce(hopperID, 0, [force_magnitude, 0, 0], [0, 0, 0], p.LINK_FRAME)
             key_pressed = True
     else:
         speed = 0.5
