@@ -36,8 +36,8 @@ def getTargetLegDisplacement():
 
 
 def getLegLength():
-    # 0.15 is the rest length of the pneumatic joint
-    return 0.5 - p.getJointState(hopperID, pneumatic_joint_index)[0]
+    length = 0.5 - p.getJointState(hopperID, pneumatic_joint_index)[0]
+    return length
 
 
 def transform_H_to_B(vec):
@@ -55,6 +55,34 @@ def transform_H_to_B(vec):
     HB_matrix = np.matrix(HB_matrix)
     BH_matrix = np.linalg.inv(HB_matrix)
     return BH_matrix * vec
+
+
+def getSystemEnergy(k) -> float:
+    m = 12.761 + 0.46057 + 1.7676 + 0.51686
+    # k = 6000
+    tipLinkIndex = 2
+
+    velocity = getVelocity()
+    kinetic_energy = 0.5 * m * np.linalg.norm(velocity) ** 2
+
+    height_base = p.getBasePositionAndOrientation(hopperID)[0][2]
+    height_toe = p.getLinkState(hopperID, tipLinkIndex)[0][2]
+    potential_energy = m * 9.81 * (height_base - height_toe - 0.2)
+
+    spring_length = getLegLength()
+    spring_potential_energy = 0.5 * k * (spring_length - 0.5) ** 2
+
+    return kinetic_energy + potential_energy + spring_potential_energy
+
+
+def calculate_energy_loss(E_TD, E_LO, delta_E_plus):
+    delta_E_minus = E_TD + delta_E_plus - E_LO
+    return delta_E_minus
+
+
+def calculate_energy_compensation(delta_E_minus, E_LO, E_des):
+    delta_E_plus_next = delta_E_minus + E_des - E_LO
+    return delta_E_plus_next
 
 
 # -----------Start Setup---------------
@@ -105,8 +133,9 @@ stance_made = False
 stance_duration = 0.17  # this value is determined by trial and error
 
 targetVelocity = np.array([0.0, 0.0])
-speed = 1
-
+speed = 0.5
+delta_E_plus = 0  # Initial compensatory energy
+E_des = 100  # Example desired energy level (tune as necessary)
 start_time = time.perf_counter()
 while 1:
     keys = p.getKeyboardEvents()
@@ -138,7 +167,7 @@ while 1:
     else:
         state = 1
 
-    if state == 1:
+    if state == 1: # flight, state = 1
         stance_made = False
         legForce = -(k_flight) * position
         targetLegDisplacement_H = getTargetLegDisplacement()
@@ -168,7 +197,8 @@ while 1:
             p.POSITION_CONTROL,
             targetPosition=theta_inner,
         )
-    else:
+        E_LO = getSystemEnergy(k_stance)
+    else: # stance, state = 0
         if not stance_made:
             stance_made = True
             stance_duration = 0
@@ -199,18 +229,29 @@ while 1:
             targetVelocity=inner_hip_joint_target_torque,
         )
         prev_orientation = base_orientation_euler
+        E_TD = getSystemEnergy(k_stance)
+        delta_E_minus = calculate_energy_loss(E_TD, E_LO, delta_E_plus)  # Calculate energy loss
+        delta_E_plus = calculate_energy_compensation(delta_E_minus, E_LO, E_des)  # Calculate energy compensation for next step
+
         legForce = (-(k_stance) * position) - 500
+        legForce2 = (2 * delta_E_plus * (0.5 - getLegLength())) / (0.5 - 0.1)**2
+        print(delta_E_minus, delta_E_plus, legForce, legForce2)
+        force_limit_pos = 5000
+        # legForce = -max(min(legForce2, force_limit_pos), -force_limit_pos)
+        # legForce = legForce2
 
     p.setJointMotorControl2(
         hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce
     )
 
     if count % 100 == 0:
-        print(np.round(getVelocity(), 3), np.round(getTargetLegDisplacement(), 3))
-        print(
-            np.round(current_inner_hip_angle - theta_inner, 3),
-            np.round(current_outer_hip_angle - theta_outer, 3),
-        )
+        # print(np.round(getVelocity(), 3), np.round(getTargetLegDisplacement(), 3))
+        print(p.getBasePositionAndOrientation(hopperID)[0])
+        print(state, legForce)
+        # print(
+        #     np.round(current_inner_hip_angle - theta_inner, 3),
+        #     np.round(current_outer_hip_angle - theta_outer, 3),
+        # )
 
     p.stepSimulation()
     expected_time = start_time + count * dt

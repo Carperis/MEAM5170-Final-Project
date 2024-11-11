@@ -11,8 +11,6 @@ Stephen Brawner (brawner@gmail.com)
             <origin
                 xyz="-9.3513E-18 2.137E-17 0"
                 rpy="0 0 0" />
-            <!-- <mass
-                value="23.6" /> -->
             <mass value="12.761" />
             <inertia
                 ixx="0.43532"
@@ -52,8 +50,7 @@ Stephen Brawner (brawner@gmail.com)
             <origin
                 xyz="7.2774E-16 3.7304E-17 2.7756E-17"
                 rpy="0 0 0" />
-            <mass
-                value="0.002" />
+            <mass value="0.46057" />
             <inertia
                 ixx="0.001133"
                 ixy="8.7857E-19"
@@ -110,8 +107,6 @@ Stephen Brawner (brawner@gmail.com)
             <origin
                 xyz="-1.3375E-08 -2.518E-08 -0.063872"
                 rpy="0 0 0" />
-            <!-- <mass
-                value="0.005" /> -->
             <mass value="1.7676" />
             <inertia
                 ixx="0.01034"
@@ -169,8 +164,6 @@ Stephen Brawner (brawner@gmail.com)
             <origin
                 xyz="1.052E-16 -5.0005E-17 -0.0038948"
                 rpy="0 0 0" />
-            <!-- <mass
-                value="0.003" /> -->
             <mass value="0.51686" />
             <inertia
                 ixx="0.00050871"
