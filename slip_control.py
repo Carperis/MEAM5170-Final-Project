@@ -20,8 +20,8 @@ def getTargetLegDisplacement():
     vel_gain = 0.027 # this value is determined by trial and error
 
     neutral_point = (vel * stance_duration) / 2.0
-    if False and len(stance_velocities) != 0:
-        neutral_point = (np.mean(stance_velocities) * stance_duration) / 2.0
+    if True and len(stance_velocities) != 0:
+        neutral_point = (np.mean(stance_velocities, axis=0)[0:2] * stance_duration) / 2.0
 
     x_y_disp = neutral_point + vel_gain * vel_error
     z_disp = -np.sqrt(getLegLength() ** 2 - x_y_disp[0] ** 2 - x_y_disp[1] ** 2)
@@ -51,7 +51,7 @@ def transform_H_to_B(vec):
 
 # -----------Start Setup---------------
 k_flight = 6000
-k_stance = 6000 * 2.25
+k_stance = 6000
 state = 0
 legForce = 0
 tipLinkIndex = 2
@@ -60,7 +60,7 @@ outer_hip_joint_index = 0
 inner_hip_joint_index = 1
 pneumatic_joint_index = 2
 
-hip_joint_kp = 14
+hip_joint_kp = 1
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -72,8 +72,8 @@ p.changeDynamics(planeID, -1, lateralFriction=60) # frction coefficient is set t
 # p.resetDebugVisualizerCamera(cameraDistance=1.62, cameraYaw=47.6, cameraPitch=-30.8,
 #                              cameraTargetPosition=[0.43, 1.49, -0.25])
 
-hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
-# hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+# hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
 p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.VELOCITY_CONTROL, force=0) # set the pneumatic joint to be in position control mode
 p.setGravity(0, 0, -9.81)
 
@@ -118,6 +118,8 @@ def getSystemEnergy() -> float:
     return kinetic_energy + potential_energy + spring_potential_energy
 
 original_energy = getSystemEnergy()
+original_energy *= 1.5
+previous_energy_loss = None
 
 start_time = time.perf_counter()
 step_count = 0
@@ -127,21 +129,22 @@ while 1:
 
     keys = p.getKeyboardEvents()
     key_pressed = False
+    speed = 0.3
     if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, 0.3])
+        targetVelocity = np.array([0.0, 1]) * speed
         key_pressed = True
     if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, -0.3])
+        targetVelocity = np.array([0.0, -1]) * speed
         key_pressed = True
     if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([-0.3, 0.0])
+        targetVelocity = np.array([-1, 0.0]) * speed
         key_pressed = True
     if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.3, 0.0])
+        targetVelocity = np.array([1, 0.0]) * speed
         key_pressed = True
 
     if not key_pressed:
-        targetVelocity = np.array([0.0, 0.3])
+        targetVelocity = np.array([0.0, 0.0])
 
     count = count + 1
     curtime = curtime + dt
@@ -156,6 +159,7 @@ while 1:
     if state == 1:
         if old_state == 0:
             liftoff_energy = getSystemEnergy()
+            previous_energy_loss = original_energy - liftoff_energy
             print("Energy loss:", original_energy - liftoff_energy)
         # Flight phase
 
@@ -169,6 +173,7 @@ while 1:
         x_disp_B = targetLegDisplacement_B[0, 0]
         y_disp_B = targetLegDisplacement_B[1, 0]
         d = getLegLength()
+        d = 0.5
         theta_inner = np.arcsin(x_disp_B / d)
         theta_outer = np.arcsin(y_disp_B / (-d * np.cos(theta_inner)))
         p.setJointMotorControl2(hopperID, outer_hip_joint_index, p.POSITION_CONTROL,
@@ -179,7 +184,7 @@ while 1:
         # Stance phase
         if old_state == 1:
             touchdown_energy = getSystemEnergy()
-            energy_loss = original_energy - touchdown_energy
+            energy_loss = original_energy - touchdown_energy + previous_energy_loss
 
         if not stance_made:
             stance_made = True
@@ -188,7 +193,8 @@ while 1:
         stance_duration = stance_duration + dt
         stance_velocities.append(getVelocity())
 
-        base_orientation = p.getLinkState(hopperID, 0)[1]
+        base_orientation = p.getBasePositionAndOrientation(hopperID)[1]
+        # base_orientation = p.getLinkState(hopperID, 0)[1]
         base_orientation_euler = np.array(p.getEulerFromQuaternion(base_orientation))
         orientation_change = base_orientation_euler - prev_orientation
         orientation_velocity = orientation_change / dt
@@ -200,9 +206,9 @@ while 1:
                                 targetVelocity=inner_hip_joint_target_vel)
         prev_orientation = base_orientation_euler
         # energy_loss = original_energy - getSystemEnergy()
-        compensation_force = -2 * energy_loss * (0.5 - getLegLength()) * 500
-        compensation_force = 250
-        # compensation_force = 500
+        compensation_force = 2 * energy_loss * (0.5 - getLegLength()) * 500
+        print(compensation_force)
+        # compensation_force = 250
         # print(compensation_force)
 
         legForce = (-(k_stance) * position) - max(compensation_force, 0)
