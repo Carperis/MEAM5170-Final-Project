@@ -60,7 +60,7 @@ outer_hip_joint_index = 0
 inner_hip_joint_index = 1
 pneumatic_joint_index = 2
 
-hip_joint_kp = 1
+hip_joint_kp = 2
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -118,7 +118,7 @@ def getSystemEnergy() -> float:
     return kinetic_energy + potential_energy + spring_potential_energy
 
 original_energy = getSystemEnergy()
-original_energy *= 1.5
+original_energy *= 1
 previous_energy_loss = None
 
 start_time = time.perf_counter()
@@ -129,19 +129,37 @@ while 1:
 
     keys = p.getKeyboardEvents()
     key_pressed = False
-    speed = 0.3
-    if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, 1]) * speed
-        key_pressed = True
-    if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, -1]) * speed
-        key_pressed = True
-    if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([-1, 0.0]) * speed
-        key_pressed = True
-    if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([1, 0.0]) * speed
-        key_pressed = True
+    # External force in 4 directions when shift + arrow key is pressed
+
+    if p.B3G_SHIFT in keys and keys[p.B3G_SHIFT] & p.KEY_IS_DOWN:
+        print("Shift key is pressed")
+        force_magnitude = 5
+        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
+            p.applyExternalForce(hopperID, 0, [0, force_magnitude, 0], [0, 0, 0], p.WORLD_FRAME)
+            key_pressed = True
+        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
+            p.applyExternalForce(hopperID, 0, [0, -force_magnitude, 0], [0, 0, 0], p.WORLD_FRAME)
+            key_pressed = True
+        if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
+            p.applyExternalForce(hopperID, 0, [-force_magnitude, 0, 0], [0, 0, 0], p.WORLD_FRAME)
+            key_pressed = True
+        if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
+            p.applyExternalForce(hopperID, 0, [force_magnitude, 0, 0], [0, 0, 0], p.WORLD_FRAME)
+            key_pressed = True
+    else:
+        speed = 0.4
+        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
+            targetVelocity = np.array([0.0, 1]) * speed
+            key_pressed = True
+        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
+            targetVelocity = np.array([0.0, -1]) * speed
+            key_pressed = True
+        if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
+            targetVelocity = np.array([-1, 0.0]) * speed
+            key_pressed = True
+        if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
+            targetVelocity = np.array([1, 0.0]) * speed
+            key_pressed = True
 
     if not key_pressed:
         targetVelocity = np.array([0.0, 0.0])
@@ -207,7 +225,6 @@ while 1:
         prev_orientation = base_orientation_euler
         # energy_loss = original_energy - getSystemEnergy()
         compensation_force = 2 * energy_loss * (0.5 - getLegLength()) * 500
-        print(compensation_force)
         # compensation_force = 250
         # print(compensation_force)
 
