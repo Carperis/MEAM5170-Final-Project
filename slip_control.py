@@ -60,7 +60,7 @@ outer_hip_joint_index = 0
 inner_hip_joint_index = 1
 pneumatic_joint_index = 2
 
-hip_joint_kp = 2
+hip_joint_kp = 1
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -118,7 +118,7 @@ def getSystemEnergy() -> float:
     return kinetic_energy + potential_energy + spring_potential_energy
 
 original_energy = getSystemEnergy()
-original_energy *= 1
+original_energy *= 1.5
 previous_energy_loss = None
 
 start_time = time.perf_counter()
@@ -147,22 +147,22 @@ while 1:
             p.applyExternalForce(hopperID, 0, [force_magnitude, 0, 0], [0, 0, 0], p.WORLD_FRAME)
             key_pressed = True
     else:
-        speed = 0.4
+        speed = 0.5
         if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
-            targetVelocity = np.array([0.0, 1]) * speed
+            userTargetVelocity = np.array([0.0, 1]) * speed
             key_pressed = True
         if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
-            targetVelocity = np.array([0.0, -1]) * speed
+            userTargetVelocity = np.array([0.0, -1]) * speed
             key_pressed = True
         if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
-            targetVelocity = np.array([-1, 0.0]) * speed
+            userTargetVelocity = np.array([-1, 0.0]) * speed
             key_pressed = True
         if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
-            targetVelocity = np.array([1, 0.0]) * speed
+            userTargetVelocity = np.array([1, 0.0]) * speed
             key_pressed = True
 
     if not key_pressed:
-        targetVelocity = np.array([0.0, 0.0])
+        userTargetVelocity = np.array([0.0, 0.0])
 
     count = count + 1
     curtime = curtime + dt
@@ -179,6 +179,8 @@ while 1:
             liftoff_energy = getSystemEnergy()
             previous_energy_loss = original_energy - liftoff_energy
             print("Energy loss:", original_energy - liftoff_energy)
+
+            targetVelocity = userTargetVelocity
         # Flight phase
 
         stance_made = False
@@ -201,6 +203,7 @@ while 1:
     else:
         # Stance phase
         if old_state == 1:
+            targetVelocity = None
             touchdown_energy = getSystemEnergy()
             energy_loss = original_energy - touchdown_energy + previous_energy_loss
 
