@@ -70,8 +70,14 @@ p.setGravity(0, 0, -9.81)
 curtime = 0
 dt = 1. / 240.
 
+# num_joint = p.getNumJoints(hopperID)
+# num_link = p.getNumJoints(hopperID)
+# for i in range(num_joint):
+#     print(p.getJointInfo(hopperID, i))
+# print(p.getLinkState(hopperID, 0))
+
 # while 1:
-#     print(p.getJointState(hopperID, pneumatic_joint_index))
+#     # print(p.getJointState(hopperID, pneumatic_joint_index))
 #     time.sleep(dt)
 #     p.stepSimulation()
 
@@ -82,10 +88,6 @@ stance_made = False
 stance_duration = 0.17 * 2
 
 targetVelocity = np.array([0.3, 0.3])
-
-num_joint = p.getNumJoints(hopperID)
-for i in range(num_joint):
-    print(p.getJointInfo(hopperID, i))
 
 while 1:
     keys = p.getKeyboardEvents()
@@ -143,6 +145,10 @@ while 1:
         orientation_velocity = orientation_change / dt
         outer_hip_joint_target_vel = -hip_joint_kp * base_orientation_euler[0] - hip_joint_kd * orientation_velocity[0]
         inner_hip_joint_target_vel = -hip_joint_kp * base_orientation_euler[1] - hip_joint_kd * orientation_velocity[1]
+        
+        # print(np.round(outer_hip_joint_target_vel, 3), np.round(inner_hip_joint_target_vel, 3))
+        print(np.round(outer_hip_joint_target_vel, 3), np.round(orientation_velocity[0], 3), np.round(base_orientation_euler[0], 3))
+        
         p.setJointMotorControl2(hopperID, outer_hip_joint_index, p.VELOCITY_CONTROL,
                                 targetVelocity=outer_hip_joint_target_vel)
         p.setJointMotorControl2(hopperID, inner_hip_joint_index, p.VELOCITY_CONTROL,

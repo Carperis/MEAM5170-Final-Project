@@ -82,8 +82,8 @@ p.changeDynamics(
 # p.resetDebugVisualizerCamera(cameraDistance=1.62, cameraYaw=47.6, cameraPitch=-30.8,
 #                              cameraTargetPosition=[0.43, 1.49, -0.25])
 
-# hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.0, 0, 1])
-hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
+hopperID = p.loadURDF("./slip/urdf/slip.urdf", [0, 0, 1], [0.00, 0.0, 0, 1])
+# hopperID = p.loadURDF("./slip_flat/urdf/slip_flat.urdf", [0, 0, 1], [0.00, 0.001, 0, 1])
 p.setJointMotorControl2(
     hopperID, pneumatic_joint_index, p.VELOCITY_CONTROL, force=0
 )  # set the pneumatic joint to be in position control mode
@@ -98,30 +98,42 @@ dt = 1.0 / 240.0
 #     print(p.getJointInfo(hopperID, i))
 # print(p.getLinkState(hopperID, 0))
 
+# while 1:
+#     position = p.getJointState(hopperID, pneumatic_joint_index)[0]
+#     legForce = -(k_flight) * position
+#     p.setJointMotorControl2(
+#         hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce
+#     )
+#     # print(p.getJointState(hopperID, pneumatic_joint_index))
+#     time.sleep(dt)
+#     p.stepSimulation()
+
 prev_orientation = np.array([0, 0, 0])
 count = 0
 
 stance_made = False
 stance_duration = 0.17  # this value is determined by trial and error
 
-targetVelocity = np.array([0.0, 0.0])
-speed = 1
+targetVelocity = np.array([0.3, 0.3])
+
+outer_hip_joint_target_torque = 0
+inner_hip_joint_target_torque = 0
 
 start_time = time.perf_counter()
 while 1:
     keys = p.getKeyboardEvents()
     key_pressed = False
     if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, 1.0]) * speed
+        targetVelocity = np.array([0.0, 0.3])
         key_pressed = True
     if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([0.0, -1.0]) * speed
+        targetVelocity = np.array([0.0, -0.3])
         key_pressed = True
     if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([-1.0, 0.0]) * speed
+        targetVelocity = np.array([-0.3, 0.0])
         key_pressed = True
     if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN:
-        targetVelocity = np.array([1.0, 0.0]) * speed
+        targetVelocity = np.array([0.3, 0.0])
         key_pressed = True
 
     if not key_pressed:
@@ -156,17 +168,16 @@ while 1:
         theta_outer = -np.arcsin(y_disp_B / (d * np.cos(theta_inner)))  # ϕtd_n
         current_inner_hip_angle = p.getJointState(hopperID, inner_hip_joint_index)[0]
         current_outer_hip_angle = p.getJointState(hopperID, outer_hip_joint_index)[0]
-        p.setJointMotorControl2(
-            hopperID,
-            outer_hip_joint_index,
-            p.POSITION_CONTROL,
-            targetPosition=theta_outer,
+        # print(current_inner_hip_angle, theta_inner)
+        # print(current_outer_hip_angle, theta_outer)
+        # print(p.getJointState(hopperID, inner_hip_joint_index))
+        # print(p.getJointState(hopperID, outer_hip_joint_index))
+        print(np.round(current_inner_hip_angle-theta_inner, 3), np.round(current_outer_hip_angle-theta_outer, 3))
+        outer_hip_joint_target_torque = (
+            -hip_joint_kp * (current_outer_hip_angle - theta_outer)
         )
-        p.setJointMotorControl2(
-            hopperID,
-            inner_hip_joint_index,
-            p.POSITION_CONTROL,
-            targetPosition=theta_inner,
+        inner_hip_joint_target_torque = (
+            -hip_joint_kp * (current_inner_hip_angle - theta_inner)
         )
     else:
         if not stance_made:
@@ -186,31 +197,55 @@ while 1:
             -hip_joint_kp * (base_orientation_euler[1] - 0)
             - hip_joint_kd * orientation_velocity[1]
         )  # −k_αp (α_n − α_des) − k_αv * α_dot_n, where α_des = 0
-        p.setJointMotorControl2(
-            hopperID,
-            outer_hip_joint_index,
-            p.VELOCITY_CONTROL,
-            targetVelocity=outer_hip_joint_target_torque,
-        )
-        p.setJointMotorControl2(
-            hopperID,
-            inner_hip_joint_index,
-            p.VELOCITY_CONTROL,
-            targetVelocity=inner_hip_joint_target_torque,
-        )
+        # p.setJointMotorControl2(
+        #     hopperID,
+        #     outer_hip_joint_index,
+        #     # p.VELOCITY_CONTROL,
+        #     # targetVelocity=outer_hip_joint_target_torque,
+        #     p.TORQUE_CONTROL,
+        #     force=outer_hip_joint_target_torque,
+        # )
+        # p.setJointMotorControl2(
+        #     hopperID,
+        #     inner_hip_joint_index,
+        #     # p.VELOCITY_CONTROL,
+        #     # targetVelocity=inner_hip_joint_target_torque,
+        #     p.TORQUE_CONTROL,
+        #     force=inner_hip_joint_target_torque,
+        # )
         prev_orientation = base_orientation_euler
         legForce = (-(k_stance) * position) - 500
 
     p.setJointMotorControl2(
+        hopperID,
+        outer_hip_joint_index,
+        # p.POSITION_CONTROL,
+        # targetPosition=theta_outer,
+        p.TORQUE_CONTROL,
+        force=np.round(outer_hip_joint_target_torque, 3),
+    )
+    p.setJointMotorControl2(
+        hopperID,
+        inner_hip_joint_index,
+        # p.POSITION_CONTROL,
+        # targetPosition=theta_inner,
+        p.TORQUE_CONTROL,
+        force=np.round(inner_hip_joint_target_torque, 3),
+    )
+    
+    p.setJointMotorControl2(
         hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce
     )
 
-    if count % 100 == 0:
-        print(np.round(getVelocity(), 3), np.round(getTargetLegDisplacement(), 3))
-        print(
-            np.round(current_inner_hip_angle - theta_inner, 3),
-            np.round(current_outer_hip_angle - theta_outer, 3),
-        )
+    # if count % 10 == 0:
+    #     # print(np.round(getVelocity(),3), np.round(getTargetLegDisplacement(),3))
+    #     # print(orientation_velocity, base_orientation_euler)
+    #     print(
+    #         np.round(outer_hip_joint_target_torque, 3),
+    #         np.round(base_orientation_euler[0], 3),
+    #         np.round(orientation_velocity[0], 3),
+    #         np.round(orientation_acceleration[0], 3),
+    #     )
 
     p.stepSimulation()
     expected_time = start_time + count * dt
