@@ -1,4 +1,13 @@
-**venv
-**test**
-**_pycache_**
-**.zip**
+# Python
+*venv
+__pycache__
+
+# VS Code
+.vscode
+
+# macOS
+.DS_Store
+
+# Misc
+*test*
+*.zip

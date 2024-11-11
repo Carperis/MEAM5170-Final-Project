@@ -5,7 +5,7 @@ import pybullet_data as pd
 
 def contact():
     tip_z_position = p.getLinkState(hopperID, tipLinkIndex)[0][2]
-    if tip_z_position < (0.1 + 0.0002):
+    if tip_z_position < 0.0504:
         return True
     else:
         return False
@@ -18,12 +18,20 @@ def getTargetLegDisplacement():
     vel = getVelocity()[0:2]
     vel_error = vel - targetVelocity
     vel_gain = 0.027 # this value is determined by trial and error
+
     neutral_point = (vel * stance_duration) / 2.0
+    if False and len(stance_velocities) != 0:
+        neutral_point = (np.mean(stance_velocities) * stance_duration) / 2.0
+
     x_y_disp = neutral_point + vel_gain * vel_error
     z_disp = -np.sqrt(getLegLength() ** 2 - x_y_disp[0] ** 2 - x_y_disp[1] ** 2)
-    disp = np.append(x_y_disp, z_disp) # disp contains the x, y, z displacement of the tip of the leg in the base frame
-    if np.isnan(disp[2]):
+
+    if np.isnan(z_disp):
         print('legs too short')
+        z_disp = 0
+        x_y_disp /= np.linalg.norm(x_y_disp)
+
+    disp = np.append(x_y_disp, z_disp) # disp contains the x, y, z displacement of the tip of the leg in the base frame
     return disp
 
 def getLegLength():
@@ -52,7 +60,7 @@ outer_hip_joint_index = 0
 inner_hip_joint_index = 1
 pneumatic_joint_index = 2
 
-hip_joint_kp = 1
+hip_joint_kp = 14
 hip_joint_kd = 0.5
 
 p.connect(p.GUI)
@@ -91,10 +99,32 @@ count = 0
 
 stance_made = False
 stance_duration = 0.17 # this value is determined by trial and error
+stance_velocities = []
 
 targetVelocity = np.array([0.3, 0.3])
 
+def getSystemEnergy() -> float:
+    m = 12.761
+
+    velocity = getVelocity()
+    kinetic_energy = 0.5 * m * np.linalg.norm(velocity) ** 2
+
+    height = p.getLinkState(hopperID, 0)[0][2]  # TODO
+    potential_energy = m * 9.81 * height
+
+    spring_length = getLegLength()
+    spring_potential_energy = 0.5 * k_stance * (spring_length - 0.5) ** 2
+
+    return kinetic_energy + potential_energy + spring_potential_energy
+
+original_energy = getSystemEnergy()
+
+start_time = time.perf_counter()
+step_count = 0
+
 while 1:
+    step_count += 1
+
     keys = p.getKeyboardEvents()
     key_pressed = False
     if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN:
@@ -111,18 +141,24 @@ while 1:
         key_pressed = True
 
     if not key_pressed:
-        targetVelocity = np.array([0.0, 0.0])
+        targetVelocity = np.array([0.0, 0.3])
 
     count = count + 1
     curtime = curtime + dt
     position = p.getJointState(hopperID, pneumatic_joint_index)[0] # get the position on axis z of the pneumatic joint
 
+    old_state = state
     if contact():
         state = 0
     else:
         state = 1
 
     if state == 1:
+        if old_state == 0:
+            liftoff_energy = getSystemEnergy()
+            print("Energy loss:", original_energy - liftoff_energy)
+        # Flight phase
+
         stance_made = False
         legForce = -(k_flight) * position
         targetLegDisplacement_H = getTargetLegDisplacement()
@@ -140,10 +176,18 @@ while 1:
         p.setJointMotorControl2(hopperID, inner_hip_joint_index, p.POSITION_CONTROL,
                                 targetPosition=theta_inner)
     else:
+        # Stance phase
+        if old_state == 1:
+            touchdown_energy = getSystemEnergy()
+            energy_loss = original_energy - touchdown_energy
+
         if not stance_made:
             stance_made = True
             stance_duration = 0
+            stance_velocities = []
         stance_duration = stance_duration + dt
+        stance_velocities.append(getVelocity())
+
         base_orientation = p.getLinkState(hopperID, 0)[1]
         base_orientation_euler = np.array(p.getEulerFromQuaternion(base_orientation))
         orientation_change = base_orientation_euler - prev_orientation
@@ -155,13 +199,23 @@ while 1:
         p.setJointMotorControl2(hopperID, inner_hip_joint_index, p.VELOCITY_CONTROL,
                                 targetVelocity=inner_hip_joint_target_vel)
         prev_orientation = base_orientation_euler
-        legForce = (-(k_stance) * position) - 500
+        # energy_loss = original_energy - getSystemEnergy()
+        compensation_force = -2 * energy_loss * (0.5 - getLegLength()) * 500
+        compensation_force = 250
+        # compensation_force = 500
+        # print(compensation_force)
+
+        legForce = (-(k_stance) * position) - max(compensation_force, 0)
 
     p.setJointMotorControl2(hopperID, pneumatic_joint_index, p.TORQUE_CONTROL, force=legForce)
 
     # print(position, legForce)
-    if count % 100 == 0:
-        print(getVelocity(), getTargetLegDisplacement())
+    # if count % 100 == 0:
+    #     print(getVelocity(), getTargetLegDisplacement())
 
     p.stepSimulation()
-    time.sleep(dt)
+
+    expected_time = start_time + step_count * dt
+    actual_time = time.perf_counter()
+    if expected_time > actual_time:
+        time.sleep(expected_time - actual_time)
