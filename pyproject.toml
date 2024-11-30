@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pympc"
+version = "2024.0.0"
+dependencies = []
+requires-python = ">= 3.10"
+# authors = []
+# description = ""
+# readme = ""
+# keywords = []
+# classifiers = []
+
+[project.urls]
+Repository = "https://github.com/Carperis/MEAM5170_Final_Project"
+
+[project.scripts]
+pympc-mujoco-aliengo = "pympc.scripts.mujoco_aliengo:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pympc", "pympc.*"]
+namespaces = false
