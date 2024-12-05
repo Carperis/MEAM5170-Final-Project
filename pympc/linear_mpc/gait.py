@@ -19,6 +19,11 @@ class Gait(Enum):
     PACING16 = "pacing", 16, np.array([8, 0, 8, 0]), np.array([8, 8, 8, 8])
     PACING10 = "pacing", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
 
+    # Use these gaits for the final project poster.
+    TROT = "trot", 10, np.array([5, 0, 0, 5]), np.array([5, 5, 5, 5])
+    PACE = "pace", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
+    # WALK = "walk", 10, np.array([5, 0, 2.5, 7.5]), np.array([7.5, 7.5, 7.5, 7.5])
+
     def __init__(
         self,
         name: str,
@@ -94,8 +99,11 @@ class Gait(Enum):
             i_horizon = (i + 1 + self.iteration) % self.num_segment
             cur_segment = i_horizon - self.stance_offsets
             for j in range(4):
-                if cur_segment[j] < 0:
+                while cur_segment[j] < 0:
                     cur_segment[j] += self.num_segment
+                while cur_segment[j] >= self.num_segment:
+                    cur_segment[j] -= self.num_segment
+                assert 0 <= cur_segment[j] < self.num_segment
 
                 if cur_segment[j] < self.stance_durations[j]:
                     gait_table[i * 4 + j] = 1

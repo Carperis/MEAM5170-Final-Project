@@ -103,8 +103,8 @@ class ModelPredictiveController:
                 ref_traj, gait_table, solver=solver
             )[0:12]
             solve_end = time.time()
-            print("MPC solved in {:3f}s.".format(solve_end - solve_start))
-            print(self.yaw, self.yaw_desired)
+            # print("MPC solved in {:3f}s.".format(solve_end - solve_start))
+            # print(self.yaw, self.yaw_desired)
 
             if debug and iter_counter == iter_debug:
                 contact_forces_debug = self._solve_mpc(

@@ -1,7 +1,10 @@
 import os
+from argparse import ArgumentParser
 
 import mujoco_py
 import numpy as np
+import scipy.ndimage
+from tqdm import trange
 
 from ..config.linear_mpc_configs import LinearMpcConfig
 from ..config.robot_configs import AliengoConfig
@@ -162,15 +165,31 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
         sim.data.ctrl[:] = torque_cmds
 
         sim.step()
-        viewer.render()
+        if viewer is not None:
+            viewer.render()
 
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument("--save-npy", action="store_true")
+    parser.add_argument("--no-viewer", action="store_true")
+    parser.add_argument(
+        "--vel-base-des", type=float, default=0.0
+    )  # Negative for random
+    parser.add_argument(
+        "--yaw-turn-rate-des", type=float, default=0.0
+    )  # Negative for random
+    parser.add_argument("--gait", type=str, default="TROTTING10")
+    args = parser.parse_args()
+
     cur_path = os.path.dirname(__file__)
     mujoco_xml_path = os.path.join(cur_path, "../robot/aliengo/aliengo.xml")
     model = mujoco_py.load_model_from_path(mujoco_xml_path)
     sim = mujoco_py.MjSim(model)
-    viewer = mujoco_py.MjViewer(sim)
+    if args.no_viewer:
+        viewer = None
+    else:
+        viewer = mujoco_py.MjViewer(sim)
 
     robot_config = AliengoConfig
 
@@ -184,15 +203,45 @@ def main():
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
     leg_controller = LegController(robot_config.Kp_swing, robot_config.Kd_swing)
 
-    gait = Gait.TROTTING10
+    gait = getattr(Gait, args.gait)
     swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_idx) for leg_idx in range(4)]
 
-    vel_base_des = np.array([1.2, 0.0, 0.0])
-    yaw_turn_rate_des = 0.0
+    dt_range = np.arange(0, 10, step=predictive_controller.dt_control)
+
+    vels_base_des = np.zeros((dt_range.shape[0], 3))
+    if args.vel_base_des >= 0:
+        vels_base_des[:, 0] = args.vel_base_des
+    else:
+        np.random.seed(0)
+        noise = np.random.randn(dt_range.shape[0])
+        noise = scipy.ndimage.gaussian_filter1d(noise, 500)
+        noise -= noise.min()
+        noise /= noise.max()
+        noise *= 2.5  # max speed 2.5 m/s
+        vels_base_des[:, 0] = noise
+    lin_vel_base_actual = np.empty((dt_range.shape[0], 3))
+
+    yaw_turn_rates_des = np.zeros(dt_range.shape[0])
+    if args.vel_base_des >= 0:
+        yaw_turn_rates_des[:] = args.yaw_turn_rate_des
+    else:
+        np.random.seed(42)
+        noise = np.random.randn(dt_range.shape[0])
+        noise -= noise.min()
+        noise /= noise.max()
+        noise -= 0.5
+        noise *= 1.6  # -0.8 to 0.8 rad/s
+        yaw_turn_rates_des[:] = noise
+    ang_vel_base_actual = np.empty((dt_range.shape[0], 3))
+
+    joints_qdot = np.empty((dt_range.shape[0], 12))
+    joints_torque = np.empty((dt_range.shape[0], 12))
+
+    touch_states = np.empty((dt_range.shape[0], 4), dtype=bool)
 
     iter_counter = 0
 
-    while True:
+    for i_step in trange(dt_range.shape[0]):
 
         if not STATE_ESTIMATION:
             data = get_true_simulation_data(sim)
@@ -208,6 +257,11 @@ def main():
             qdot=data[5],
         )
 
+        lin_vel_base_actual[i_step] = robot_data.lin_vel_base
+        ang_vel_base_actual[i_step] = robot_data.ang_vel_base
+        joints_qdot[i_step] = robot_data.qdot
+        touch_states[i_step] = np.array(data[5 if STATE_ESTIMATION else 6]) > 0
+
         gait.set_iteration(predictive_controller.iterations_between_mpc, iter_counter)
         swing_states = gait.get_swing_state()
         gait_table = gait.get_gait_table()
@@ -216,8 +270,8 @@ def main():
 
         contact_forces = predictive_controller.update_mpc_if_needed(
             iter_counter,
-            vel_base_des,
-            yaw_turn_rate_des,
+            vels_base_des[i_step],
+            yaw_turn_rates_des[i_step],
             gait_table,
             solver="drake",
             debug=False,
@@ -230,7 +284,7 @@ def main():
         for leg_idx in range(4):
             if swing_states[leg_idx] > 0:  # leg is in swing state
                 swing_foot_trajs[leg_idx].set_foot_placement(
-                    robot_data, gait, vel_base_des, yaw_turn_rate_des
+                    robot_data, gait, vels_base_des[i_step], yaw_turn_rates_des[i_step]
                 )
                 base_pos_base_swingfoot_des, base_vel_base_swingfoot_des = (
                     swing_foot_trajs[leg_idx].compute_traj_swingfoot(robot_data, gait)
@@ -246,16 +300,21 @@ def main():
             vel_targets_swingfeet,
         )
         sim.data.ctrl[:] = torque_cmds
+        joints_torque[i_step] = torque_cmds
 
         sim.step()
-        viewer.render()
+        if viewer is not None:
+            viewer.render()
         iter_counter += 1
 
-        if iter_counter == 50000:
-            sim.reset()
-            reset(sim)
-            iter_counter = 0
-            break
+    if args.save_npy:
+        np.save("vels_base_des.npy", vels_base_des)
+        np.save("yaw_turn_rates_des.npy", yaw_turn_rates_des)
+        np.save("lin_vel_base_actual.npy", lin_vel_base_actual)
+        np.save("ang_vel_base_actual.npy", ang_vel_base_actual)
+        np.save("joints_qdot.npy", joints_qdot)
+        np.save("joints_torque.npy", joints_torque)
+        np.save("touch_states.npy", touch_states)
 
 
 if __name__ == "__main__":
