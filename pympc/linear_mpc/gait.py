@@ -22,7 +22,7 @@ class Gait(Enum):
     # Use these gaits for the final project poster.
     TROT = "trot", 10, np.array([5, 0, 0, 5]), np.array([5, 5, 5, 5])
     PACE = "pace", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
-    # WALK = "walk", 10, np.array([5, 0, 2.5, 7.5]), np.array([7.5, 7.5, 7.5, 7.5])
+    WALK = "walk", 10, np.array([5, 0, 2.5, 7.5]), np.array([7.5, 7.5, 7.5, 7.5])
 
     def __init__(
         self,
