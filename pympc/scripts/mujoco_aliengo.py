@@ -277,7 +277,8 @@ def main():
             debug=False,
             iter_debug=0,
         )
-
+        # contact_forces_int = np.array(contact_forces, dtype=np.int8)
+        # print(f"LF: {np.sum(contact_forces_int[0:3])}, RF: {np.sum(contact_forces_int[3:6])}, LH: {np.sum(contact_forces_int[6:9])}, RH: {np.sum(contact_forces_int[9:12])}")
         pos_targets_swingfeet = np.zeros((4, 3))
         vel_targets_swingfeet = np.zeros((4, 3))
 
@@ -299,6 +300,7 @@ def main():
             pos_targets_swingfeet,
             vel_targets_swingfeet,
         )
+        # print(torque_cmds)
         sim.data.ctrl[:] = torque_cmds
         joints_torque[i_step] = torque_cmds
 

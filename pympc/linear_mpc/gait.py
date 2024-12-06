@@ -4,25 +4,40 @@ import numpy as np
 
 from ..config.linear_mpc_configs import LinearMpcConfig
 
+seg = 8
 
 class Gait(Enum):
     """
     name: name of the gait
     num_segment:
     """
+    
 
-    STANDING = "standing", 16, np.array([0, 0, 0, 0]), np.array([16, 16, 16, 16])
-    TROTTING16 = "trotting", 16, np.array([0, 8, 8, 0]), np.array([8, 8, 8, 8])
-    TROTTING10 = "trotting", 10, np.array([0, 5, 5, 0]), np.array([5, 5, 5, 5])
-    JUMPING16 = "jumping", 16, np.array([0, 0, 0, 0]), np.array([4, 4, 4, 4])
+    # STANDING = "standing", 16, np.array([0, 0, 0, 0]), np.array([16, 16, 16, 16])
+    # TROTTING16 = "trotting", 16, np.array([0, 8, 8, 0]), np.array([8, 8, 8, 8])
+    # TROTTING10 = "trotting", 10, np.array([0, 5, 5, 0]), np.array([5, 5, 5, 5])
+    # JUMPING8 = "jumping", 8, np.array([0, 0, 0, 0]), np.array([4, 4, 4, 4])
     # BOUNDING8 = 'bounding', 8, np.array([4, 4, 0, 0]), np.array([4, 4, 4, 4])
-    PACING16 = "pacing", 16, np.array([8, 0, 8, 0]), np.array([8, 8, 8, 8])
-    PACING10 = "pacing", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
+    # PACING16 = "pacing", 16, np.array([8, 0, 8, 0]), np.array([8, 8, 8, 8])
+    # PACING10 = "pacing", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
 
     # Use these gaits for the final project poster.
-    TROT = "trot", 10, np.array([5, 0, 0, 5]), np.array([5, 5, 5, 5])
-    PACE = "pace", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
-    WALK = "walk", 10, np.array([5, 0, 2.5, 7.5]), np.array([7.5, 7.5, 7.5, 7.5])
+    # first array: [left front (LF), right front (RF), left hind (LH), right hind (RH)]
+    # TROT = "trot", 10, np.array([0, 5, 5, 0]), np.array([5, 5, 5, 5])
+    # PACE = "pace", 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
+    # BOUND = "bound", 8, np.array([6, 6, 2, 2]), np.array([6, 6, 2, 2])
+    # PRONK = "pronk", 8, np.array([0, 0, 2, 2]), np.array([6, 6, 4, 4])
+    # GALLOP = "gallop", 8, np.array([3, 1, 8, 6]), np.array([6, 6, 4, 4])
+    # WALK = "walk", 8, np.array([5, 1, 3, 7]), np.array([7, 7, 7, 7])
+    
+    TROT = "trot", seg, np.array([0, seg/2, seg/2, 0]), np.array([seg/2, seg/2, seg/2, seg/2])
+    PACE = "pace", seg, np.array([seg/2, 0, seg/2, 0]), np.array([seg/2, seg/2, seg/2, seg/2])    
+    BOUND = "bound", seg, np.array([seg*3/4, seg*3/4, seg/4, seg/4]), np.array([seg*3/4, seg*3/4, seg/4, seg/4])
+    PRONK = "pronk", seg, np.array([0, 0, seg/4, seg/4]), np.array([seg*3/4, seg*3/4, seg/2, seg/2])
+    GALLOP = "gallop", seg, np.array([seg*3/8, seg*1/8, seg, seg*3/4]), np.array([seg*3/4, seg*3/4, seg/2, seg/2])
+    WALK = "walk", seg, np.array([seg*5/8, seg*1/8, seg*3/8, seg*7/8]), np.array([seg*7/8, seg*7/8, seg*7/8, seg*7/8])
+    
+    
 
     def __init__(
         self,
@@ -109,7 +124,9 @@ class Gait(Enum):
                     gait_table[i * 4 + j] = 1
                 else:
                     gait_table[i * 4 + j] = 0
-
+        # print(self.__mpc_horizon)
+        # for i in range(16):
+        #     print(gait_table[i*4:i*4+4])
         return gait_table
 
     def get_swing_state(self) -> np.ndarray:
